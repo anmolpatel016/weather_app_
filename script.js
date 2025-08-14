@@ -16,6 +16,8 @@ const currentDateTxt = document.querySelector('.current-date-txt');
 const forecastItemsContainer = document.querySelector('.forecast-items-container');
 
 const apiKey = '6051e208b004321e4b6b5dcb716d39b8';
+
+const now = new Date();
 const Option = {weekday: 'short', month:'short', day:'numeric',hour:'numeric', minute:'numeric', hour12: true};
 const date = new Date().toLocaleDateString('en-Us', Option);
 
@@ -45,19 +47,18 @@ cityInput.addEventListener('keydown', (event) => {
     }
 });
 
-// Placeholder fetch function
 async function getFetchData(endPoint, city) {
     try{
     const apiUrl = `https://api.openweathermap.org/data/2.5/${endPoint}?q=${city}&appid=${apiKey}&units=metric`
     
-    const response = await fetch(apiUrl);
-    if (!response.ok) {
-        throw new Error("City not found");
-    }
-    return await response.json();
+const response = await fetch(apiUrl);
+if (!response.ok) {
+    throw new Error("City not found");
+}
+return await response.json();
 } catch(error) {
-    alert(error.message);
-    return;
+    alert("Error: " + error.message);
+    console.error(error);
 }
 }
 function getWeatherIcon(id) {
@@ -69,57 +70,36 @@ function getWeatherIcon(id) {
     if(id <= 800) return 'clear-sky.svg'
     if(id <= 804) return 'clouds.svg'
     else return 'sun.svg'
-
 } 
- function updateDateTime(){
-    const now = new Date();
-    const dateTimeElement = document.getElementById('datetime');
-    const options ={
-        weekday:'short',
-        month:'short',
-        day:'numeric',
-        hour:'numeric',
-        hour12:true,
-        timeZone:'Asia/Kolkata',
-    };
-    dateTimeElement.textContent = now.toLocaleDateString('en-In',options);
- }
- setInterval(updateDateTime,1000);
- updateDateTime();
-
-
 
 // Function to update weather
 async function updateWeatherInfo(city) {
-    const weatherData =await getFetchData('weather',city);
+    const weatherData = await getFetchData('weather',city);
+    
+    
     if (weatherData.cod !=200) {
         showDisplaySection(notFoundSection);
         return;
     }
-    
-
-    const{
+    const {
         name: country,
-        main: {temp, humidity },
+        main: { temp, humidity },
         weather: [{ id, main }],
         wind: { speed }
-    } = weatherData
+    } = weatherData;
 
-    countryTxt.textContent = country
-    tempTxt.textContent = Math.round(temp) + '°C'
-    conditionTxt.textContent = main
-    humidityValueTxt.textContent = humidity + '%'
-    
-    currentDateTxt.textContent = date
-    
-    document.addEventListener("DOMContentLoaded", () => {
-        updateWeatherInfo();
-    });
-    if (windValueTxt) {
-        windValueTxt.textContent = `${speed}m/s`
-    }else{
-        console.warn("Element 'windValueTxt' not found!'");
+    countryTxt.textContent = country;
+    tempTxt.textContent = Math.round(temp) + '°C';
+    conditionTxt.textContent = main;
+    humidityValueTxt.textContent = humidity + '%';
+    currentDateTxt.textContent = date;
+
+    if (weatherData.wind && typeof weatherData.wind.deg !== 'undefined') {
+        updateWindDirection(weatherData);
+    }else if(windValueTxt){
+        windValueTxt.textContent = `${speed} m/s`;
     }
+
 
     await updateForecastsInfo(city)
     if(weatherSummaryImg){
@@ -127,6 +107,26 @@ async function updateWeatherInfo(city) {
     }
     showDisplaySection(weatherInfoSection)
 }
+function getWindDirection(deg) {
+    const directions = [
+        "N", "NNE", "NE", "ENE",
+        "E", "ESE", "SE", "SSE",
+        "S", "SSW", "SW", "WSW",
+        "W", "WNW", "NW", "NNW"
+    ];
+    const index = Math.round(deg / 22.5) % 16;
+    return directions[index];
+}
+
+function updateWindDirection(data){
+    
+    if (windValueTxt && data.wind) {
+        const speed = data.wind.speed;
+        const direction = getWindDirection(data.wind.deg);
+        windValueTxt.textContent = `${direction} ${speed.toFixed(1)} m/s`;
+    }
+}
+
 async function updateForecastsInfo(city) {
     const forecastsData = await getFetchData('forecast',city)
 
